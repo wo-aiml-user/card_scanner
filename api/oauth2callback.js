@@ -5,6 +5,7 @@ module.exports = async function handler(req, res) {
     const forwardedProto = (req.headers['x-forwarded-proto'] || '').toString().split(',')[0].trim();
     const host = (req.headers['x-forwarded-host'] || req.headers.host || '').toString().trim();
     const protocol = forwardedProto || (host.includes('localhost') ? 'http' : 'https');
+    const isLocalhost = host.includes('localhost') || host.startsWith('127.0.0.1');
 
     const { code } = req.query;
 
@@ -16,8 +17,10 @@ module.exports = async function handler(req, res) {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     
-    // Must match the same redirect used in /api/auth/google.
-    const redirectUri = process.env.OAUTH_REDIRECT_URI || `${protocol}://${host}/api/oauth2callback`;
+    // Must match /api/auth/google redirect URI exactly.
+    const redirectUri = isLocalhost
+      ? `${protocol}://${host}/api/oauth2callback`
+      : (process.env.OAUTH_REDIRECT_URI || `${protocol}://${host}/api/oauth2callback`);
 
     const oauth2Client = new google.auth.OAuth2(
       clientId,
@@ -89,9 +92,9 @@ module.exports = async function handler(req, res) {
     const sessionDataBase64 = Buffer.from(sessionDataJson).toString('base64');
     const cookieValue = encodeURIComponent(sessionDataBase64);
     const cookieHost = (req.headers.host || '').toLowerCase();
-    const isLocalhost = cookieHost.includes('localhost') || cookieHost.startsWith('127.0.0.1');
-    const cookieSecurity = isLocalhost ? '' : 'Secure; ';
-    const sameSite = isLocalhost ? 'Lax' : 'None';
+    const isCookieLocalhost = cookieHost.includes('localhost') || cookieHost.startsWith('127.0.0.1');
+    const cookieSecurity = isCookieLocalhost ? '' : 'Secure; ';
+    const sameSite = isCookieLocalhost ? 'Lax' : 'None';
     
     // Store as cookie (without HttpOnly so we can read it in client-side if needed)
     res.setHeader('Set-Cookie', `userData=${cookieValue}; ${cookieSecurity}SameSite=${sameSite}; Max-Age=${30 * 24 * 60 * 60}; Path=/`);
