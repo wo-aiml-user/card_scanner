@@ -2,6 +2,10 @@ const { google } = require('googleapis');
 
 module.exports = async function handler(req, res) {
   try {
+    const forwardedProto = (req.headers['x-forwarded-proto'] || '').toString().split(',')[0].trim();
+    const host = (req.headers['x-forwarded-host'] || req.headers.host || '').toString().trim();
+    const protocol = forwardedProto || (host.includes('localhost') ? 'http' : 'https');
+
     const { code } = req.query;
 
     if (!code) {
@@ -12,8 +16,8 @@ module.exports = async function handler(req, res) {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     
-    // Use production domain from environment or fallback
-    const redirectUri = process.env.OAUTH_REDIRECT_URI;
+    // Must match the same redirect used in /api/auth/google.
+    const redirectUri = process.env.OAUTH_REDIRECT_URI || `${protocol}://${host}/api/oauth2callback`;
 
     const oauth2Client = new google.auth.OAuth2(
       clientId,
@@ -84,8 +88,8 @@ module.exports = async function handler(req, res) {
     const sessionDataJson = JSON.stringify(sessionData);
     const sessionDataBase64 = Buffer.from(sessionDataJson).toString('base64');
     const cookieValue = encodeURIComponent(sessionDataBase64);
-    const host = (req.headers.host || '').toLowerCase();
-    const isLocalhost = host.includes('localhost') || host.startsWith('127.0.0.1');
+    const cookieHost = (req.headers.host || '').toLowerCase();
+    const isLocalhost = cookieHost.includes('localhost') || cookieHost.startsWith('127.0.0.1');
     const cookieSecurity = isLocalhost ? '' : 'Secure; ';
     const sameSite = isLocalhost ? 'Lax' : 'None';
     

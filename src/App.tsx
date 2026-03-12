@@ -61,9 +61,9 @@ function App() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  // In localhost dev, route API calls to deployed backend so /api/auth/google does not hit Vite SPA.
+  // Local dev uses local API server; production uses same-origin.
   const API_BASE_URL = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname)
-    ? 'https://digital-card-extractor.vercel.app'
+    ? 'http://localhost:3001'
     : '';
   const apiUrl = (path: string) => `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 
