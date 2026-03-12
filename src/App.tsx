@@ -51,6 +51,8 @@ function App() {
     // Listen for auth success message from OAuth popup
     const handleMessage = (event: MessageEvent) => {
       if (event.data === 'auth_success') {
+        setIsSigningIn(false);
+        authPopupRef.current = null;
         checkAuth();
       }
     };
@@ -61,7 +63,7 @@ function App() {
 
   // In localhost dev, route API calls to deployed backend so /api/auth/google does not hit Vite SPA.
   const API_BASE_URL = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname)
-    ? 'https://digital-cards-extractor.vercel.app'
+    ? 'https://digital-card-extractor.vercel.app'
     : '';
   const apiUrl = (path: string) => `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 
@@ -118,16 +120,12 @@ function App() {
       return;
     }
 
-    const checkClosed = setInterval(() => {
-      if (popup?.closed) {
-        clearInterval(checkClosed);
-        setTimeout(() => {
-          checkAuth();
-          setIsSigningIn(false);
-          authPopupRef.current = null;
-        }, 1000);
-      }
-    }, 1000);
+    // Avoid polling popup.closed across origins (COOP warning spam in console).
+    // OAuth callback posts `auth_success` to the opener; that path now clears signing state.
+    setTimeout(() => {
+      setIsSigningIn(false);
+      authPopupRef.current = null;
+    }, 120000);
   };
 
   const processImage = async (file: File): Promise<{ previewUrl: string; data: CardData }> => {
